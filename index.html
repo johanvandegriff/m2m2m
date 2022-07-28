@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>m2m2m</title>
+    <script src="vue-3.2.37.prod.js"></script>
+    <style>
+      html, body {
+        margin: 0; /* makes css calculations easier */
+        background: #111;
+        color: white;
+      }
+      .toolbar {
+        height: 50px; /* fixed height to enable css calculation, see .column */
+        background-color: #333;
+        overflow-y: auto;
+      }
+      .board {
+        display: flex;
+        overflow-x: auto; /* show the x scrollbar here instead of the whole page */
+        overflow-y: hidden; /* deal with the y scrollbar later (in the individual columns) */
+      }
+      /* move the scrollbar to the top */
+      .board, .column {
+        transform: rotateX(180deg); /* two wrongs make a right */
+      }
+      .column {
+        max-height: calc(100vh - 50px); /* 50px = toolbar height */
+        overflow-y: auto; /* show the y scrollbar in individual columns */
+        flex: 1;
+      }
+      /* actual columns */
+      .column:nth-child(even) {
+        min-width: 300px;
+      }
+      /* plus in between columns */
+      .column:nth-child(odd) {
+        min-width: 50px;
+        max-width: 50px;
+        border: 1px solid white;
+        border-radius: 6px;
+        margin-top: 15px;
+        margin-left: 5px;
+        margin-right: 5px;
+        margin-bottom: 15px;
+        text-align: center; /* horizontally centered */
+        display: flex;
+        flex-direction: column; /* vertically centered */
+        justify-content: center;
+        opacity: 0; /* start off hidden */
+        height: calc(100vh - 50px - 30px - 2px); /* 50px = toolbar, 30px = top/bottom margin, 2px = border */
+        transition: 500ms all; /* fade out slowly */
+      }
+      .column:nth-child(odd):hover {
+        opacity: 1; /* show when the mouse hovers */
+        transition: 0ms all; /* fade in instantly */
+      }
+      input {
+        width: calc(100% - 10px - 2px); /* 10px = 2x padding, 2px = 2x border */
+        background-color: #111;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        outline: none;
+        border: 1px solid #333;
+        /* border: 1px solid red; */
+        /* margin: 0; */
+        padding: 5px;
+        font-family: Sans-serif;
+        font-size: large;
+      }
+      button {
+        font-size: large;
+        margin: 8px;
+        color: black;
+        background-color: white;
+        border: 1px solid black;
+        border-radius: 6px;
+      }
+      .title {
+        margin-bottom: 35px;
+        font-size: x-large;
+      }
+      .item {
+        width: calc(100% - 10px - 2px - 30px - 30px); /* 10px = 2x padding, 2px = 2x border, 30px = x-button, 30px = drag button */
+      }
+      .first {
+        margin-top: 15px;
+      }
+      .last {
+        margin-bottom: 15px;
+      }
+      .plus {
+        display: block;
+        padding: 0;
+        text-align: center;
+        border: 1px solid white;
+        border-radius: 6px;
+        margin-top: 2px;
+        /* margin-left: 10px; */
+        /* margin-right: 10px; */
+        margin-bottom: 2px;
+        font-size: 20px;
+        line-height: 1;
+        padding-bottom: 1px;
+        user-select: none;
+        opacity: 0; /* start off hidden */
+        transition: 500ms all; /* fade out slowly */
+      }
+      .plus:hover {
+        opacity: 1;
+        transition: 0ms all; /* fade in instantly */
+      }
+      /* always show plus buttons when on mobile */
+      @media (pointer:coarse) {
+        .column:nth-child(odd) {
+          opacity: 0.5;
+        }
+        .plus {
+          opacity: 0.5;
+        }
+      }
+
+      .fade-in {
+        animation: fadeIn ease 0.3s;
+        animation-fill-mode: forwards;
+      }
+
+      @keyframes fadeIn {
+        0% {
+          /* opacity: 0; */
+          min-width: 0;
+          margin: 0;
+        }
+        100% {
+          /* opacity: 1; */
+        }
+      }
+
+      .links {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+      }
+      .links > div {
+        margin: 5px;
+        /* border: 1px solid #333; */
+        border-radius: 6px;
+        padding: 3px;
+        font-family: Sans-serif;
+        color: #aaa;
+        font-size: medium;
+      }
+      .links > div:first-child {
+        user-select: none;
+      }
+      /* .links > div:last-child {
+        user-select: none;
+        margin-left: auto;
+        line-height: 1;
+        padding-top: 5px;
+      } */
+      .link-title {
+        font-size: x-large;
+        color: #9ae;
+        margin-left: 15px;
+        margin-right: 15px;
+      }
+      .link-title:visited {
+        color: #9ae;
+      }
+      .item-drag-burger {
+        display: inline-block;
+        padding-right: 5px
+      }
+      .column-drag-burger {
+        font-size: x-large;
+        color: #bbb;
+        display: inline-block;
+        width: 25px;
+        height: 25px;
+        text-align: center;
+        padding: 0;
+        margin-right: 5px;
+        user-select: none;
+      }
+      .x-button {
+        font-size: x-large;
+        color: #bbb;
+        display: inline-block;
+        border-radius: 100%;
+        width: 25px;
+        height: 25px;
+        text-align: center;
+        padding: 0;
+        margin-left: 5px;
+        line-height: 1;
+        user-select: none;
+      }
+      .x-button:hover {
+        color: red;
+      }
+      .link-x-button {
+        color: #bbb;
+        line-height: 1;
+        user-select: none;
+      }
+      .link-x-button:hover {
+        color: red;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div class="toolbar">
+        <a class="link-title" href="">{{title}}</a>
+        <button @click="example_board">example</button>
+        <button @click="clear_board(); on_change()">clear</button>
+        <span class="link-title"></span>
+        <button @click="undo">undo (ctrl-z) ↶</button>
+        <button @click="redo">↷ redo (ctrl-y)</button>
+        <span class="link-title"></span>
+      </div>
+      <div class="board">
+        <div v-for="(column, ig) in columns_and_betweens" class="column" v-on:click="columns_and_betweens_click(ig); garbage_collect(); on_change()" @drop="on_drop_column($event, ig); garbage_collect(); on_change()" @dragover.prevent @dragenter.prevent>
+          <div v-if="column.between === true">+</div>
+          <span v-else>
+            <div draggable="true" @dragstart="column_drag($event, ig); garbage_collect(); on_change()" class="column-drag-burger">☰</div>
+            <input class="first title item" v-model="column.title" placeholder="title" v-on:change="garbage_collect(); on_change()">
+            <div class="x-button" @click="delete_column_ig(ig)">ⓧ</div>
+            <span v-if="column.items.reduce((acc, item) => acc - (item === null), column.items.length) > 0">
+              <input v-model="column.new_before" v-on:change="new_before(ig); garbage_collect(); on_change()" placeholder="new item">
+              <span v-for="(item, j) in column.items" @drop="on_drop_item($event, ig, j); garbage_collect(); on_change()" @dragover.prevent @dragenter.prevent>
+                <!-- <svg style="position: absolute" width="50" height="50"><line x1="5" y1="5" x2="35" y2="5" stroke="red"/></svg> -->
+                <div class="plus" v-if="item !== null" v-on:click="new_between(ig, j); garbage_collect(); on_change()">+</div>
+                <div draggable="true" @dragstart="move_drag($event, ig, j); garbage_collect(); on_change()" class="item-drag-burger">☰</div>
+                <input class="item" v-if="item !== null" v-model="column.items[j].name" v-on:change="check_if_item_empty(ig, j); on_change()">
+                <div class="x-button" v-if="item !== null" @click="delete_item((ig-1)/2, j); garbage_collect(); on_change()">ⓧ</div>
+                <div class="links" v-if="item !== null">
+                  <div draggable="true" @dragstart="link_drag($event, ig, j); garbage_collect(); on_change()" >🔗</div>
+                  <div class="link" v-for="link in item.links">
+                    {{columns[link.col].items[link.row].name}}
+                    <span class="link-x-button" @click="delete_link((ig-1)/2, j, link); garbage_collect(); on_change()">ⓧ</span>
+                  </div>
+                </div>
+              </span>
+              <div class="plus" v-on:click="new_between(ig, column.items.length); garbage_collect(); on_change()">+</div>
+            </span>
+            <input class="last" v-model="column.new_after" v-on:change="new_after(ig); garbage_collect(); on_change()" placeholder="new item">
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <script>
+'use strict';
+const { createApp } = Vue
+
+createApp({
+  data() {
+    return {
+      title: "m2m2m",
+      columns: [],
+      garbage_collected: true,
+      version: 1,
+    }
+  },
+  computed: {
+    columns_and_betweens() {
+      const blank = {between: true};
+      var res = [];
+      res.push(blank);
+      this.columns.forEach(column => {
+        res.push(column);
+        res.push(blank);
+      });
+      return res;
+    },
+  },
+  methods: {
+    on_change() {
+      //note: cannot call the garbage collector here so this might not be compact
+      window.location = '#' + btoa(JSON.stringify({"version": this.version, "columns": this.columns}));
+    },
+    column_drag(evt, ig) {
+      this.start_drag(evt, ig, null, 'move-column');
+    },
+    move_drag(evt, ig, j) {
+      this.start_drag(evt, ig, j, 'move-item');
+    },
+    link_drag(evt, ig, j) {
+      this.start_drag(evt, ig, j, 'link-items');
+    },
+    start_drag(evt, ig, j, drag_intent) {
+      const i = (ig-1)/2;
+      // console.log('drag', i, j);
+      evt.dataTransfer.effectAllowed = 'link';
+      evt.dataTransfer.dropEffect = 'link';
+      evt.dataTransfer.setData('i', i);
+      evt.dataTransfer.setData('j', j);
+      evt.dataTransfer.setData('drag_intent', drag_intent);
+    },
+    on_drop_column(evt, ig2) {
+      const drag_intent = evt.dataTransfer.getData('drag_intent');
+      if (drag_intent === 'move-column') {
+        const i2 = (ig2-1)/2;
+        const i = parseInt(evt.dataTransfer.getData('i'));
+        if (i > i2) {
+          this.move_column(i, Math.ceil(i2));
+        } else {
+          this.move_column(i, Math.floor(i2)+1);
+        }
+      }
+    },
+    on_drop_item(evt, ig2, j2) {
+      const drag_intent = evt.dataTransfer.getData('drag_intent');
+      if (drag_intent !== 'move-column') {
+        const i2 = (ig2-1)/2;
+        const i = parseInt(evt.dataTransfer.getData('i'));
+        const j = parseInt(evt.dataTransfer.getData('j'));
+        console.log('drop', i, j, i2, j2, drag_intent);
+        if (drag_intent === 'link-items') {
+          this.add_link(i, j, i2, j2);
+        } else if (drag_intent === 'move-item') {
+          if (j > j2) {
+            this.move_item(i, j, i2, j2);
+          } else {
+            this.move_item(i, j, i2, j2+1);
+          }
+        }
+      }
+    },
+    add_link(i, j, i2, j2) {
+      const same_item = i === i2 && j === j2;
+      const already_linked = this.columns[i].items[j].links.reduce(
+        (acc, link) => acc || (link.col === i2 && link.row === j2), false
+      );
+      if(!same_item && !already_linked) { //can't link to self, can't link multiple times
+        this.columns[i].items[j].links.push({col: i2, row: j2})
+        this.columns[i2].items[j2].links.push({col: i, row: j})
+      }
+    },
+    delete_column_ig(ig) {
+      const i = (ig-1)/2;
+      this.delete_column(i);
+    },
+    delete_column(i) {
+      const column = this.columns[i];
+      for(var j=0; j<column.items.length; j++) {
+        this.delete_item(i, j)
+      }
+      this.shift_col_links_del(i);
+      this.columns.splice(i, 1);
+    },
+    columns_and_betweens_click(ig) {
+      if (ig % 2 === 0) { //even number (space between columns)
+        this.add_column(ig/2);
+
+        //CSS animation and scroll
+        const col = document.getElementsByClassName('column')[ig+1];
+        if (col !== undefined) col.classList.remove("fade-in");
+        const sep = document.getElementsByClassName('column')[ig+2];
+        if (sep !== undefined) sep.classList.remove("fade-in");
+        this.$nextTick(() => {
+          const col = document.getElementsByClassName('column')[ig+1];
+          col.classList.add("fade-in");
+          const sep = document.getElementsByClassName('column')[ig+2];
+          sep.classList.add("fade-in");
+          for (var t=100; t<=300; t+=100) {
+            setTimeout(() => {
+              sep.scrollIntoView({behavior: 'smooth', block: 'center', inline: 'center'})
+            }, t);
+          }
+        });
+      }
+    },
+    add_column(i) {
+      this.shift_col_links_add(i);
+      const newCol = {
+        title: "",
+        items: [],
+        new_before: "",
+        new_after: "",
+      }
+      this.columns.splice(i, 0, newCol);
+
+      this.$nextTick(() => {
+        const ig = i*2+1;
+        const col = document.getElementsByClassName('column')[ig];
+        const title = col.children[0].children[0];
+        title.focus();
+      });
+    },
+    shift_item_links(i, j, to_shift) {
+      const item = this.columns[i].items[j];
+      if (item !== null) {
+        item.links.forEach(link => { //loop thru all the links on this item and update the other end by the delta
+          const other_end = this.columns[link.col].items[link.row];
+          for (var j3=0; j3<other_end.links.length; j3++) { //look for this link on the other end
+            const other_link = other_end.links[j3];
+            if (other_link.col === i && other_link.row === j) {
+              to_shift.add(other_link);
+            }
+          }
+        });
+      }
+      return to_shift;
+    },
+    apply_shift(to_shift, delta_col, delta_row) {
+      console.log("shifting:", JSON.stringify(to_shift));
+      [...to_shift].forEach(link => {
+        link.col += delta_col;
+        link.row += delta_row;
+      });
+    },
+    shift_item_links_add(i, start_j) {
+      var to_shift = new Set();
+      //loop thru all the items after the specified start value
+      for (var j=this.columns[i].items.length-1; j>=start_j; j--) { //loop backwards to avoid processing twice
+        this.shift_item_links(i, j, to_shift);
+      }
+      this.apply_shift(to_shift, 0, 1);
+    },
+    shift_item_links_del(i, start_j) {
+      var to_shift = new Set();
+      //loop thru all the items after the specified start value
+      for (var j=start_j; j<this.columns[i].items.length; j++) { //loop forward because we are removing an item
+        this.shift_item_links(i, j, to_shift);
+      }
+      this.apply_shift(to_shift, 0, -1);
+    },
+    shift_col_links_add(start_i) {
+      var to_shift = new Set();
+      //loop thru all the items after the specified start value
+      for (var i=this.columns.length-1; i>=start_i; i--) { //loop backwards to avoid processing twice
+        const column = this.columns[i];
+        for (var j=0; j<column.items.length; j++) {
+          this.shift_item_links(i, j, to_shift);
+        }
+      }
+      this.apply_shift(to_shift, 1, 0)
+    },
+    shift_col_links_del(start_i) {
+      var to_shift = new Set();
+      //loop thru all the items after the specified start value
+      for (var i=start_i; i<this.columns.length; i++) {
+        const column = this.columns[i];
+        for (var j=0; j<column.items.length; j++) {
+          this.shift_item_links(i, j, to_shift);
+        }
+      }
+      this.apply_shift(to_shift, -1, 0);
+    },
+    add_item(name, i, j) {
+      const column = this.columns[i];
+      this.shift_item_links_add(i, j);
+      column.items.splice(j, 0, {name: name, links: []});
+    },
+    add_item_start(name, i) {
+      this.add_item(name, i, 0)
+    },
+    add_item_end(name, i) {
+      const column = this.columns[i];
+      this.add_item(name, i, column.items.length)
+    },
+    new_before(ig) {
+      const i = (ig-1)/2;
+      const column = this.columns[i];
+      if (column.new_before.length > 0) {
+        this.add_item_start(column.new_before, i);
+        column.new_before = "";
+      }
+    },
+    new_after(ig) {
+      const i = (ig-1)/2;
+      const column = this.columns[i];
+      if (column.new_after.length > 0) {
+        this.add_item_end(column.new_after, i);
+        column.new_after = "";
+      }
+    },
+    new_between(ig, j) {
+      const i = (ig-1)/2;
+      this.add_item("", i, j);
+
+      // once the DOM updates, focus the new text input
+      this.$nextTick(() => {
+        const col = document.getElementsByClassName('column')[ig];
+        const item = col.children[0].children[2].children[j+1].children[1]
+        item.focus();
+      });
+    },
+    check_if_item_empty(ig, j) {
+      const i = (ig-1)/2;
+      if (this.columns[i].items[j].name === "") {
+        this.delete_item(i, j);
+      }
+    },
+    delete_item(i, j) {
+      const column = this.columns[i];
+      if (column.items[j] === null) {
+        return; //item is already deleted
+      }
+      // column.items.splice(j, 1); //this causes the focus to jump 1 extra when hitting tab
+      //remove the links to this item
+      column.items[j].links.forEach(link => {
+        this.columns[link.col].items[link.row].links = this.columns[link.col].items[link.row].links.filter(l => l.col !== i || l.row !== j);
+      });
+      //mark this item as removed for the garbage collector
+      column.items[j] = null;
+      this.garbage_collected = false;
+    },
+    delete_link(i, j, link) {
+      const link_to_me = {col: i, row: j};
+
+      const other_item = this.columns[link.col].items[link.row];
+      other_item.links = other_item.links.filter(l => !(l.col === link_to_me.col && l.row === link_to_me.row));
+
+      const item = this.columns[i].items[j];
+      item.links = item.links.filter(l => !(l.col === link.col && l.row === link.row));
+    },
+    move_item(oldI, oldJ, newI, newJ) {
+      //duplicate the item
+      const name = this.columns[oldI].items[oldJ].name;
+      this.add_item(name, newI, newJ);
+
+      //check if the old item was offset by the new
+      if (oldI === newI && oldJ > newJ) { //if on the same column, and the old item is after the new
+        oldJ++;
+      }
+
+      //copy the links from the old to the new
+      //TODO update the existing links instead of making new ones to avoid re-ordering
+      const links = this.columns[oldI].items[oldJ].links;
+      links.forEach(link => {
+        this.add_link(newI, newJ, link.col, link.row);
+      });
+
+      this.delete_item(oldI, oldJ);
+
+      //TODO show item dragging when moving - maybe entire thing is draggable
+      //TODO able to move to top/bottom of col
+      //TODO can drop on the + in between
+    },
+    move_column(oldI, newI) {
+      console.log("move_column", oldI, newI);
+      this.add_column(newI);
+      if (oldI > newI) { //if the old column is after the new
+        oldI++; //the new one would be offset by the old
+      }
+      this.columns[newI].title = this.columns[oldI].title;
+      const num_items = this.columns[oldI].items.length;
+      for (var newJ=0; newJ<num_items; newJ++) {
+        // console.log("move item", oldI, "zero", newI, newJ)
+        this.move_item(oldI, 0, newI, newJ);
+        this.garbage_collect();
+      }
+      this.delete_column(oldI);
+    },
+    garbage_collect() {
+      if (!this.garbage_collected) {
+        this.columns.forEach((column, i) => {
+          for (var j=0; j<column.items.length; j++) {
+            if (column.items[j] === null) {
+              this.shift_item_links_del(i, j) //offset the links by -1
+              column.items.splice(j, 1); //remove the item
+              j--; //don't increment this time since an item was removed
+            }
+          }
+        });
+      }
+    },
+    undo() {
+      const local_data = window.location.href.split('#')[1];
+      if (local_data !== undefined) {
+        window.history.back();
+      }
+    },
+    redo() {
+      window.history.forward();
+    },
+    example_board() {
+      window.location = '#eyJ2ZXJzaW9uIjoxLCJjb2x1bW5zIjpbeyJ0aXRsZSI6IlByb2dyYW1taW5nIExhbmd1YWdlcyIsIml0ZW1zIjpbeyJuYW1lIjoiSmF2YSIsImxpbmtzIjpbeyJjb2wiOjEsInJvdyI6MH0seyJjb2wiOjEsInJvdyI6Mn0seyJjb2wiOjIsInJvdyI6MX1dfSx7Im5hbWUiOiJQeXRob24iLCJsaW5rcyI6W3siY29sIjoxLCJyb3ciOjF9LHsiY29sIjoxLCJyb3ciOjJ9LHsiY29sIjoyLCJyb3ciOjB9XX0seyJuYW1lIjoiRWxpeGlyIiwibGlua3MiOlt7ImNvbCI6MSwicm93IjoxfSx7ImNvbCI6MSwicm93IjoyfSx7ImNvbCI6Miwicm93IjoyfV19LHsibmFtZSI6IkphdmFTY3JpcHQiLCJsaW5rcyI6W3siY29sIjoxLCJyb3ciOjF9LHsiY29sIjoxLCJyb3ciOjN9LHsiY29sIjoyLCJyb3ciOjF9XX1dLCJuZXdfYmVmb3JlIjoiIiwibmV3X2FmdGVyIjoiIn0seyJ0aXRsZSI6IlR5cGluZyBEaXNjaXBsaW5lIiwiaXRlbXMiOlt7Im5hbWUiOiJzdGF0aWNhbGx5IHR5cGVkIiwibGlua3MiOlt7ImNvbCI6MCwicm93IjowfV19LHsibmFtZSI6ImR5bmFtaWNhbGx5IHR5cGVkIiwibGlua3MiOlt7ImNvbCI6MCwicm93IjoxfSx7ImNvbCI6MCwicm93IjoyfSx7ImNvbCI6MCwicm93IjozfV19LHsibmFtZSI6InN0cm9uZ2x5IHR5cGVkIiwibGlua3MiOlt7ImNvbCI6MCwicm93IjowfSx7ImNvbCI6MCwicm93IjoxfSx7ImNvbCI6MCwicm93IjoyfV19LHsibmFtZSI6IndlYWtseSB0eXBlZCIsImxpbmtzIjpbeyJjb2wiOjAsInJvdyI6M31dfV0sIm5ld19iZWZvcmUiOiIiLCJuZXdfYWZ0ZXIiOiIifSx7InRpdGxlIjoiWWVhciIsIml0ZW1zIjpbeyJuYW1lIjoiMTk5MSIsImxpbmtzIjpbeyJjb2wiOjAsInJvdyI6MX1dfSx7Im5hbWUiOiIxOTk1IiwibGlua3MiOlt7ImNvbCI6MCwicm93IjowfSx7ImNvbCI6MCwicm93IjozfV19LHsibmFtZSI6IjIwMTIiLCJsaW5rcyI6W3siY29sIjowLCJyb3ciOjJ9XX1dLCJuZXdfYmVmb3JlIjoiIiwibmV3X2FmdGVyIjoiIn1dfQ==';
+      this.load_from_local_url();
+    },
+    clear_board() {
+        this.columns = [];
+        this.add_column(0);
+    },
+    load_from_local_url() {
+      const local_data = window.location.href.split('#')[1];
+      if (local_data === undefined) {
+        this.clear_board();
+      } else {
+        try {
+          const imported_data = JSON.parse(atob(local_data));
+          if (this.version !== imported_data.version) {
+            alert("incompatible version: expected " + this.version + " but got " + imported_data.version)
+          }
+          this.columns = imported_data.columns;
+        } catch(e) {
+          console.log("error parsing data, clearing document:", e.message);
+          this.clear_board();
+          this.on_change();
+        }
+      }
+    },
+    keydown(e) {
+      if(e.ctrlKey && e.code === 'KeyZ') {
+        this.undo();
+      } else if (e.ctrlKey && e.code === 'KeyY') {
+        this.redo();
+      }
+    },
+  },
+  mounted() {
+    if (window.location.hostname !== "") this.title = window.location.hostname;
+    this.load_from_local_url();
+
+    //whenever the user goes forward/back in history, re-read from the local url
+    addEventListener('popstate', event => {
+      this.load_from_local_url();
+    });
+    document.addEventListener('keydown', this.keydown);
+  },
+  destroyed () {
+    document.removeEventListener('keydown', this.keydown)
+  },
+}).mount('#app')
+    </script>
+  </body>
+</html>
+
+<!--
+TODO draw lines between linked items
+TODO another way to save in case URL is too long
+
+TODO toggle edit/view?
+TODO move links?
+TODO validate import? - no unidirectional links?
+-->
