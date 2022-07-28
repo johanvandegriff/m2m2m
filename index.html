@@ -216,11 +216,11 @@
     <div id="app">
       <div class="toolbar">
         <a class="link-title" href="">{{title}}</a>
-        <button @click="example_board">example</button>
-        <button @click="clear_board(); on_change()">clear</button>
-        <span class="link-title"></span>
         <button @click="undo">undo (ctrl-z) ↶</button>
         <button @click="redo">↷ redo (ctrl-y)</button>
+        <span class="link-title"></span>
+        <button @click="example_board">example</button>
+        <button @click="clear_board(); on_change()">clear</button>
         <span class="link-title"></span>
       </div>
       <div class="board">
@@ -602,6 +602,7 @@ createApp({
           this.columns = imported_data.columns;
         } catch(e) {
           console.log("error parsing data, clearing document:", e.message);
+          alert("error parsing data, see console (F12) for more details");
           this.clear_board();
           this.on_change();
         }
@@ -616,7 +617,7 @@ createApp({
     },
   },
   mounted() {
-    if (window.location.hostname !== "") this.title = window.location.hostname;
+    if (window.location.hostname !== "") this.title = window.location.hostname.split('.')[0];
     this.load_from_local_url();
 
     //whenever the user goes forward/back in history, re-read from the local url
@@ -634,6 +635,8 @@ createApp({
 </html>
 
 <!--
+TODO cannot move item or column on mobile
+
 TODO draw lines between linked items
 TODO another way to save in case URL is too long
 
